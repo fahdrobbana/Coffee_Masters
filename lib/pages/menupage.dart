@@ -1,6 +1,6 @@
+import 'package:coffee_masters/datamanager.dart';
 import 'package:coffee_masters/datamodel.dart';
 import 'package:flutter/material.dart';
-
 
 void main() {
   runApp(const MyApp());
@@ -34,21 +34,30 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   var selectedIndex = 0;
-  final List<Widget> _pages = <Widget>[
-    const MenuPage(),
-    Container(
-      color: Colors.white,
-      child: const Center(
-        child: Text('Offers Page'),
+  final DataManager dataManager = DataManager();
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = <Widget>[
+      MenuPage(
+        dataManager: dataManager,
       ),
-    ),
-    Container(
-      color: Colors.white,
-      child: const Center(
-        child: Text('Order Page'),
+      Container(
+        color: Colors.white,
+        child: const Center(
+          child: Text('Offers Page'),
+        ),
       ),
-    ),
-  ];
+      Container(
+        color: Colors.white,
+        child: const Center(
+          child: Text('Order Page'),
+        ),
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,23 +102,63 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class MenuPage extends StatelessWidget {
-  const MenuPage({Key? key});
+  final DataManager dataManager;
+  const MenuPage({Key? key, required this.dataManager});
 
   @override
   Widget build(BuildContext context) {
-    var p = Product(name: "Cappuccino", id: 1, price: 12, image: '');
-    var q = Product(name: "Macchiato", id: 1, price: 12, image: '');
-    return ListView(
-      children: [
-        ProductItem(
-          product: p,
-          onAdd: () {},
-        ),
-        ProductItem(
-          product: q,
-          onAdd: () {},
-        ),
-      ],
+    return FutureBuilder(
+      future: dataManager.getMenu(),
+      builder: ((context, snapshot) {
+        if (snapshot.hasData) {
+          var categories = snapshot.data!;
+          return ListView.builder(
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              var category = categories[index];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      category.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                      ),
+                    ),
+                  ),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: category.products.length,
+                    itemBuilder: (context, index) {
+                      var product = category.products[index];
+                      return ProductItem(
+                        product: product,
+                        onAdd: () {
+                          dataManager.cartAdd(product);
+                        },
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text("Error loading menu"),
+            );
+          } else {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+        }
+      }),
     );
   }
 }
@@ -128,7 +177,7 @@ class ProductItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset("images/black_coffee.png"),
+            Image.network(product.imageUrl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
